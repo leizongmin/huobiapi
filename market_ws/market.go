@@ -12,7 +12,7 @@ import (
 )
 
 /// 行情的Websocket入口
-var MarketWSEndpoint = "wss://api.huobi.pro/ws"
+var Endpoint = "wss://api.huobi.pro/ws"
 
 type Market struct {
 	ws *websocket.Conn
@@ -20,7 +20,7 @@ type Market struct {
 
 func NewMarket() (m *Market, err error) {
 	m = &Market{}
-	ws, _, err := websocket.DefaultDialer.Dial(MarketWSEndpoint, nil)
+	ws, _, err := websocket.DefaultDialer.Dial(Endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -57,17 +57,8 @@ func (m *Market) sendMessage(data interface{}) error {
 	if b, err := json.Marshal(data); err != nil {
 		return err
 	} else {
-		//var buf bytes.Buffer
-		//zw := gzip.NewWriter(&buf)
-		//zw.Write(b)
-		//zw.Close()
-		//if err := m.ws.WriteMessage(websocket.BinaryMessage, buf.Bytes()); err != nil {
-		//	return err
-		//}
-		//log.Println(string(b), buf.Bytes())
-
 		log.Println(string(b))
-		if err := m.ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
+		if err := m.ws.WriteMessage(websocket.TextMessage, b); err != nil {
 			return err
 		}
 	}
