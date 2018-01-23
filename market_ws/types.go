@@ -10,5 +10,5 @@ type pingData struct {
 
 type subData struct {
 	Sub string `json:"sub"`
-	ID string `json:"id"`
+	ID  string `json:"id"`
 }

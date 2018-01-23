@@ -1,13 +1,13 @@
 package client
 
 import (
-	"net/http"
-	"encoding/json"
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"time"
-	"io/ioutil"
-	"fmt"
 )
 
 func isGetMethod(method string) bool {

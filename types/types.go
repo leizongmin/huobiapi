@@ -3,8 +3,8 @@ package types
 type KLineData struct {
 	Status string `json:"status"`
 	Ch     string `json:"ch"`
-	Ts     int64 `json:"ts"`
-	Data []struct {
+	Ts     int64  `json:"ts"`
+	Data   []struct {
 		ID     int64   `json:"id"`
 		Amount float64 `json:"amount"`
 		Count  int64   `json:"count"`

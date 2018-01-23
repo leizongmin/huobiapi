@@ -1,8 +1,8 @@
 package market_ws
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 )
 
 func TestMarket(t *testing.T) {

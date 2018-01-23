@@ -1,14 +1,15 @@
 package market_ws
 
 import (
-	"compress/gzip"
 	"bytes"
-	"io/ioutil"
-	"github.com/gorilla/websocket"
-	"log"
+	"compress/gzip"
 	"encoding/json"
-	"github.com/bitly/go-simplejson"
+	"io/ioutil"
+	"log"
 	"time"
+
+	"github.com/bitly/go-simplejson"
+	"github.com/gorilla/websocket"
 )
 
 /// 行情的Websocket入口
@@ -29,7 +30,7 @@ func NewMarket() (m *Market, err error) {
 	m.sendMessage(subData{ID: "xxx", Sub: "market.btcusdt.kline.1min"})
 	go m.handleMessageLoop()
 	time.Sleep(time.Second * 10)
-	m.sendMessage(pingData{Ping: int(time.Now().UnixNano()/1000000)})
+	m.sendMessage(pingData{Ping: int(time.Now().UnixNano() / 1000000)})
 	time.Sleep(time.Second * 20)
 
 	return m, nil

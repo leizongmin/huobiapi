@@ -1,10 +1,11 @@
 package client
 
 import (
-	"testing"
 	"fmt"
-	"github.com/stretchr/testify/assert"
+	"testing"
+
 	"github.com/bitly/go-simplejson"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSign(t *testing.T) {

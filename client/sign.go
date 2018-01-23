@@ -1,12 +1,12 @@
 package client
 
 import (
-	"sort"
-	"net/url"
-	"strings"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"net/url"
+	"sort"
+	"strings"
 )
 
 func getMapKeys(m map[string]string) (keys []string) {

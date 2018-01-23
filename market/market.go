@@ -2,6 +2,7 @@ package market
 
 import (
 	"encoding/json"
+
 	"github.com/leizongmin/huobiapi/client"
 	"github.com/leizongmin/huobiapi/types"
 )

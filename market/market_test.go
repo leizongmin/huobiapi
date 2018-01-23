@@ -1,11 +1,12 @@
 package market
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"fmt"
 	"encoding/json"
+	"fmt"
+	"testing"
+
 	"github.com/leizongmin/huobiapi/client"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClient_GetKLine(t *testing.T) {
