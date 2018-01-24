@@ -1,4 +1,4 @@
-package market_ws
+package market
 
 import "math/rand"
 

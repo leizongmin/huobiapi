@@ -1,26 +1,37 @@
 package market
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
-	"github.com/leizongmin/huobiapi/client"
 	"github.com/stretchr/testify/assert"
+	//"github.com/bitly/go-simplejson"
+	"github.com/bitly/go-simplejson"
 )
 
-func TestClient_GetKLine(t *testing.T) {
-	options := client.ClientOptions{
-		AccessKeyId:      "",
-		AccessKeySecret:  "",
-		SignatureMethod:  "",
-		SignatureVersion: "",
-	}
-	c := NewClient(options)
-	data, err := c.GetKLine()
+func TestMarket(t *testing.T) {
+	m, err := NewMarket()
 	assert.NoError(t, err)
-	fmt.Println(data)
-	str, err := json.Marshal(data)
+
+	err = m.Subscribe("market.eosusdt.kline.1min", func(topic string, json *simplejson.Json, raw []byte) {
+		fmt.Println(topic, json, raw)
+	})
 	assert.NoError(t, err)
-	fmt.Println(string(str))
+
+	err = m.Subscribe("market.eosusdt.trade.detail", func(topic string, json *simplejson.Json, raw []byte) {
+		fmt.Println(topic, json, raw)
+	})
+	assert.NoError(t, err)
+
+	rep, err := m.Request("market.eosusdt.detail")
+	assert.NoError(t, err)
+	fmt.Println(rep)
+
+	fmt.Println(m)
+	go func() {
+		time.Sleep(time.Second * 10)
+		m.Close()
+	}()
+	m.Loop()
 }
