@@ -58,10 +58,12 @@ import (
 )
 
 func main() {
+    // 创建客户端实例
     client, err := huobiapi.NewClient("key id", "key secret")
     if err != nil {
         panic(err)
     }
+    // 发送请求
     ret, err := client.Request("GET", "/market/history/trade", huobiapi.ParamsData{
         "symbol": "eosusdt",
         "size": "10",
