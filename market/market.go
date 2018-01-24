@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"time"
 
+	"sync"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/gorilla/websocket"
 	"github.com/leizongmin/huobiapi/debug"
@@ -17,12 +19,14 @@ import (
 var Endpoint = "wss://api.huobi.pro/ws"
 
 type Market struct {
+	inited            bool
 	ws                *websocket.Conn
 	wsClosed          bool
 	listeners         map[string]Listener
 	subscribedTopic   map[string]bool
 	subscribeResultCb map[string]jsonChan
 	requestResultCb   map[string]jsonChan
+	lock              sync.Mutex
 }
 
 /// 订阅事件监听器
@@ -31,19 +35,16 @@ type Listener = func(topic string, json *simplejson.Json, raw []byte)
 /// 创建Market实例
 func NewMarket() (m *Market, err error) {
 	m = &Market{
+		ws:                nil,
+		wsClosed:          true,
 		listeners:         make(map[string]Listener),
 		subscribedTopic:   make(map[string]bool),
 		subscribeResultCb: make(map[string]jsonChan),
 		requestResultCb:   make(map[string]jsonChan),
 	}
-
-	ws, _, err := websocket.DefaultDialer.Dial(Endpoint, nil)
-	if err != nil {
+	if err := m.ReConnect(); err != nil {
 		return nil, err
 	}
-	m.ws = ws
-
-	go m.handleMessageLoop()
 
 	return m, nil
 }
@@ -159,6 +160,7 @@ func (m *Market) handlePing(ping pingData) (err error) {
 
 /// 订阅
 func (m *Market) Subscribe(topic string, listener Listener) error {
+	debug.Println("subscribe", topic)
 	var isNew = false
 	// 如果未曾发送过订阅指令，则发送，并等待订阅操作结果，否则直接返回
 	if _, ok := m.subscribedTopic[topic]; !ok {
@@ -182,6 +184,7 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 
 /// 取消订阅
 func (m *Market) Unsubscribe(topic string) {
+	debug.Println("unSubscribe", topic)
 	// 火币网没有提供取消订阅的接口，只能删除监听器
 	delete(m.listeners, topic)
 }
@@ -212,8 +215,54 @@ func (m *Market) Loop() {
 }
 
 /// 关闭
-func (m *Market) Close() {
+func (m *Market) Close() error {
 	debug.Println("close")
 	m.wsClosed = true
-	m.ws.Close()
+	return m.ws.Close()
+}
+
+/// 重新连接
+func (m *Market) ReConnect() error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if m.inited {
+		debug.Println("reConnect")
+	} else {
+		debug.Println("connect")
+	}
+
+	if !m.wsClosed {
+		if err := m.Close(); err != nil {
+			return err
+		}
+	}
+	m.wsClosed = false
+
+	ws, _, err := websocket.DefaultDialer.Dial(Endpoint, nil)
+	if err != nil {
+		return err
+	}
+	m.ws = ws
+
+	// 处理接收到的消息
+	go m.handleMessageLoop()
+
+	if m.inited {
+		// 清理临时请求回调
+		var listeners = m.listeners
+		var subscribedTopic = m.subscribedTopic
+		m.subscribeResultCb = make(map[string]jsonChan)
+		m.requestResultCb = make(map[string]jsonChan)
+		m.listeners = make(map[string]Listener)
+		m.subscribedTopic = make(map[string]bool)
+		// 重新订阅
+		for _, topic := range getMapKeys(subscribedTopic) {
+			if listener, ok := listeners[topic]; ok {
+				m.Subscribe(topic, listener)
+			}
+		}
+	}
+
+	m.inited = true
+	return nil
 }

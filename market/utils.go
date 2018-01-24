@@ -12,3 +12,11 @@ func getRandomString(n uint) string {
 	}
 	return string(b)
 }
+
+func getMapKeys(data map[string]bool) []string {
+	var keys []string
+	for k, _ := range data {
+		keys = append(keys, k)
+	}
+	return keys
+}
