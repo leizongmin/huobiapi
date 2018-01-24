@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	simplejson "github.com/bitly/go-simplejson"
 	"github.com/leizongmin/huobiapi"
 )
 
@@ -14,9 +13,9 @@ func main() {
 		panic(err)
 	}
 	// 订阅主题
-	market.Subscribe("market.eosusdt.trade.detail", func(topic string, json *simplejson.Json, raw []byte) {
+	market.Subscribe("market.eosusdt.trade.detail", func(topic string, json *huobiapi.JSON) {
 		// 收到数据更新时回调
-		fmt.Println(topic, json, raw)
+		fmt.Println(topic, json)
 	})
 	// 请求数据
 	json, err := market.Request("market.eosusdt.detail")

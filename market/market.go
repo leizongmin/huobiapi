@@ -30,7 +30,7 @@ type Market struct {
 }
 
 /// 订阅事件监听器
-type Listener = func(topic string, json *simplejson.Json, raw []byte)
+type Listener = func(topic string, json *simplejson.Json)
 
 /// 创建Market实例
 func NewMarket() (m *Market, err error) {
@@ -113,7 +113,7 @@ func (m *Market) handleMessageLoop() {
 		if ch := json.Get("ch").MustString(); ch != "" {
 			if listener, ok := m.listeners[ch]; ok {
 				debug.Println("handleSubscribe", json, msg)
-				listener(ch, json, msg)
+				listener(ch, json)
 			}
 			continue
 		}

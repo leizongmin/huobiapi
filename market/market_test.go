@@ -15,12 +15,12 @@ func TestMarket(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 订阅
-	err = m.Subscribe("market.eosusdt.kline.1min", func(topic string, json *simplejson.Json, raw []byte) {
-		fmt.Println(topic, json, raw)
+	err = m.Subscribe("market.eosusdt.kline.1min", func(topic string, json *simplejson.Json) {
+		fmt.Println(topic, json)
 	})
 	assert.NoError(t, err)
-	err = m.Subscribe("market.eosusdt.trade.detail", func(topic string, json *simplejson.Json, raw []byte) {
-		fmt.Println(topic, json, raw)
+	err = m.Subscribe("market.eosusdt.trade.detail", func(topic string, json *simplejson.Json) {
+		fmt.Println(topic, json)
 	})
 	assert.NoError(t, err)
 

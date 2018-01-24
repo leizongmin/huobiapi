@@ -16,8 +16,8 @@ func TestNewMarket(t *testing.T) {
 		time.Sleep(time.Second * 10)
 		m.Close()
 	}()
-	m.Subscribe("market.eosusdt.trade.detail", func(topic string, json *simplejson.Json, raw []byte) {
-		fmt.Println(topic, json, raw)
+	m.Subscribe("market.eosusdt.trade.detail", func(topic string, json *simplejson.Json) {
+		fmt.Println(topic, json)
 	})
 	m.Loop()
 }
