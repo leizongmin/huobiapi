@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	simplejson "github.com/bitly/go-simplejson"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,18 +19,25 @@ func TestSign(t *testing.T) {
 
 func TestSendRequest(t *testing.T) {
 	sign := NewSign("e2xxxxxx-99xxxxxx-84xxxxxx-7xxxx", "b0xxxxxx-c6xxxxxx-94xxxxxx-dxxxx")
-	body, err := SendRequest(sign, "GET", "api.huobi.pro", "/market/history/kline", ParamData{
+	json, err := SendRequest(sign, "GET", "https", "api.huobi.pro", "/market/history/kline", ParamData{
 		"period": "1day",
 		"size":   "200",
 		"symbol": "btcusdt",
 	})
 	assert.NoError(t, err)
-	fmt.Println(string(body))
-	js, err := simplejson.NewJson(body)
+	fmt.Println(json)
+}
+
+func TestClient_Request(t *testing.T) {
+	client, err := NewClient(MarketEndpoint, "", "")
 	assert.NoError(t, err)
-	if status, err := js.Get("status").String(); err != nil {
-		assert.NoError(t, err)
-	} else {
-		assert.Equal(t, "ok", status)
-	}
+	json, err := client.Request("GET", "/trade", ParamData{"symbol": "eosusdt"})
+	assert.NoError(t, err)
+	fmt.Println(json)
+
+	client, err = NewClient(Endpoint, "", "")
+	assert.NoError(t, err)
+	json, err = client.Request("GET", "/market/history/trade", ParamData{"symbol": "eosusdt", "size": "10"})
+	assert.NoError(t, err)
+	fmt.Println(json)
 }

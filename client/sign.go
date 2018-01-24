@@ -28,6 +28,7 @@ func computeHmac256(data string, secret string) string {
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
+/// 拼接query字符串
 func encodeQueryString(query map[string]string) string {
 	var keys = sortKeys(getMapKeys(query))
 	var len = len(keys)

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/bitly/go-simplejson"
 )
 
 func isGetMethod(method string) bool {
@@ -17,9 +19,11 @@ func isGetMethod(method string) bool {
 	return false
 }
 
+/// 请求参数
 type ParamData = map[string]string
 
-func SendRequest(sign *Sign, method, host, path string, data ParamData) ([]byte, error) {
+/// 发送原始请求
+func SendRequest(sign *Sign, method, scheme, host, path string, data ParamData) (*simplejson.Json, error) {
 	var body *bytes.Buffer
 	method = strings.ToUpper(method)
 	if data == nil {
@@ -40,13 +44,13 @@ func SendRequest(sign *Sign, method, host, path string, data ParamData) ([]byte,
 			body = bytes.NewBuffer(b)
 		}
 	}
-	fmt.Println(body)
+
 	var req *http.Request
 	var err error
 	if body != nil {
-		req, err = http.NewRequest(method, "https://"+host+path, body)
+		req, err = http.NewRequest(method, scheme+"://"+host+path, body)
 	} else {
-		req, err = http.NewRequest(method, "https://"+host+path, nil)
+		req, err = http.NewRequest(method, scheme+"://"+host+path, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -67,5 +71,14 @@ func SendRequest(sign *Sign, method, host, path string, data ParamData) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	return resBody, nil
+
+	json, err := simplejson.NewJson(resBody)
+	if err != nil {
+		return nil, err
+	}
+	var status = json.Get("status").MustString()
+	if status == "error" {
+		return json, fmt.Errorf(json.Get("err-msg").MustString())
+	}
+	return json, nil
 }
