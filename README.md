@@ -14,6 +14,8 @@ dep ensure -v -add github.com/leizongmin/huobiapi
 
 说明：返回的结果数据使用 [go-simplejson](https://github.com/bitly/go-simplejson) 存储
 
+详细代码参考 [examples](https://github.com/leizongmin/huobiapi/tree/master/examples) 目录
+
 ```go
 package main
 
