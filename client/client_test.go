@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	simplejson "github.com/bitly/go-simplejson"
 	"github.com/stretchr/testify/assert"
 )
 

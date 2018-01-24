@@ -7,8 +7,6 @@ import (
 	"github.com/leizongmin/huobiapi/types"
 )
 
-var EndPoint = "https://api.huobi.pro/market"
-
 type Client struct {
 	base *client.Client
 }
