@@ -54,6 +54,11 @@ func NewMarket() (m *Market, err error) {
 
 /// 读取消息
 func (m *Market) readMessage() (msg []byte, err error) {
+	// 设置接收消息超时时间
+	if err = m.ws.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		return nil, err
+	}
+
 	if n, buf, err := m.ws.ReadMessage(); err != nil {
 		// 判断是否为连接关闭错误
 		if websocket.IsCloseError(err) || websocket.IsUnexpectedCloseError(err) {
@@ -166,7 +171,7 @@ func (m *Market) keepAlive() {
 		m.sendMessage(pingData{Ping: t})
 
 		// 检查上次ping时间，如果超过20秒无响应，重新连接
-		if math.Abs(float64(t-m.lastPing)) >= 20 {
+		if math.Abs(float64(t-m.lastPing)) >= 20000 {
 			m.reconnectDelay()
 		}
 	}
@@ -252,10 +257,11 @@ func (m *Market) Close() error {
 func (m *Market) ReConnect() error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
 	if m.inited {
-		debug.Println("reConnect")
+		debug.Println("reConnecting")
 	} else {
-		debug.Println("connect")
+		debug.Println("connecting")
 	}
 
 	if !m.wsClosed {
@@ -270,6 +276,7 @@ func (m *Market) ReConnect() error {
 		return err
 	}
 	m.ws = ws
+	debug.Println("connected")
 
 	// 处理接收到的消息
 	go m.handleMessageLoop()
@@ -301,7 +308,6 @@ func (m *Market) reconnectDelay() {
 	debug.Println("reconnectDelay")
 	go func() {
 		time.Sleep(time.Second)
-		m.Close()
 		m.ReConnect()
 	}()
 }
