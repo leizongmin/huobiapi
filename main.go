@@ -6,9 +6,12 @@ import (
 	"github.com/leizongmin/huobiapi/market"
 )
 
-type ParamsData = client.ParamData
-
 type JSON = simplejson.Json
+
+type ParamsData = client.ParamData
+type Market = market.Market
+type Listener = market.Listener
+type Client = client.Client
 
 /// 创建WebSocket版Market客户端
 func NewMarket() (*market.Market, error) {
