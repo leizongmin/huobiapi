@@ -158,11 +158,11 @@ func (m *Market) handleMessageLoop() {
 func (m *Market) keepAlive() {
 	debug.Println("startKeepAlive")
 	for !m.wsClosed {
+		time.Sleep(time.Second * 10)
 		var t = getUinxMillisecond()
 
 		// 定时主动发送ping
 		debug.Println("keepAlive")
-		time.Sleep(time.Second * 10)
 		m.sendMessage(pingData{Ping: t})
 
 		// 检查上次ping时间，如果超过20秒无响应，重新连接
