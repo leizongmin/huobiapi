@@ -3,11 +3,11 @@ package market
 import "github.com/bitly/go-simplejson"
 
 type pongData struct {
-	Pong int `json:"pong"`
+	Pong int64 `json:"pong"`
 }
 
 type pingData struct {
-	Ping int `json:"ping"`
+	Ping int64 `json:"ping"`
 }
 
 type subData struct {

@@ -1,6 +1,9 @@
 package market
 
-import "math/rand"
+import (
+	"math/rand"
+	"time"
+)
 
 var letterRunes = []rune("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -19,4 +22,8 @@ func getMapKeys(data map[string]bool) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func getUinxMillisecond() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
 }

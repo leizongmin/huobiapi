@@ -10,6 +10,8 @@ import (
 
 	"sync"
 
+	"math"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/gorilla/websocket"
 	"github.com/leizongmin/huobiapi/debug"
@@ -26,6 +28,7 @@ type Market struct {
 	subscribedTopic   map[string]bool
 	subscribeResultCb map[string]jsonChan
 	requestResultCb   map[string]jsonChan
+	lastPing          int64
 	lock              sync.Mutex
 }
 
@@ -92,10 +95,14 @@ func (m *Market) handleMessageLoop() {
 	debug.Println("startHandleMessageLoop")
 	for !m.wsClosed {
 		msg, err := m.readMessage()
+
+		// 如果读取出错，直接关闭连接
 		if err != nil {
 			debug.Println(err)
-			continue
+			m.reconnectDelay()
+			break
 		}
+
 		debug.Println("readMessage", string(msg))
 		json, err := simplejson.NewJson(msg)
 		if err != nil {
@@ -104,7 +111,7 @@ func (m *Market) handleMessageLoop() {
 		}
 
 		// 处理ping消息
-		if ping := json.Get("ping").MustInt(); ping > 0 {
+		if ping := json.Get("ping").MustInt64(); ping > 0 {
 			m.handlePing(pingData{Ping: ping})
 			continue
 		}
@@ -147,9 +154,29 @@ func (m *Market) handleMessageLoop() {
 	debug.Println("endHandleMessageLoop")
 }
 
+/// 保持活跃
+func (m *Market) keepAlive() {
+	debug.Println("startKeepAlive")
+	for !m.wsClosed {
+		var t = getUinxMillisecond()
+
+		// 定时主动发送ping
+		debug.Println("keepAlive")
+		time.Sleep(time.Second * 10)
+		m.sendMessage(pingData{Ping: t})
+
+		// 检查上次ping时间，如果超过20秒无响应，重新连接
+		if math.Abs(float64(t-m.lastPing)) >= 20 {
+			m.reconnectDelay()
+		}
+	}
+	debug.Println("endKeepAlive")
+}
+
 /// 处理Ping
 func (m *Market) handlePing(ping pingData) (err error) {
 	debug.Println("handlePing", ping)
+	m.lastPing = ping.Ping
 	var pong = pongData{Pong: ping.Ping}
 	err = m.sendMessage(pong)
 	if err != nil {
@@ -246,6 +273,8 @@ func (m *Market) ReConnect() error {
 
 	// 处理接收到的消息
 	go m.handleMessageLoop()
+	// 保持活跃
+	go m.keepAlive()
 
 	if m.inited {
 		// 清理临时请求回调
@@ -265,4 +294,14 @@ func (m *Market) ReConnect() error {
 
 	m.inited = true
 	return nil
+}
+
+/// 稍后重新连接
+func (m *Market) reconnectDelay() {
+	debug.Println("reconnectDelay")
+	go func() {
+		time.Sleep(time.Second)
+		m.Close()
+		m.ReConnect()
+	}()
 }
