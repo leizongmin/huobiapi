@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	//"github.com/bitly/go-simplejson"
+	"strings"
+
 	"github.com/bitly/go-simplejson"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMarket(t *testing.T) {
@@ -32,16 +33,28 @@ func TestMarket(t *testing.T) {
 	// 阻塞事件循环
 	fmt.Println(m)
 	go func() {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 20)
 		m.Close()
 	}()
 	m.Loop()
 
+	fmt.Println(strings.Repeat("-------------------\n", 10))
+
 	// 重新连接
 	m.ReConnect()
 	go func() {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 20)
 		m.Close()
 	}()
+	go func() {
+		for {
+			time.Sleep(time.Second * 2)
+			rep, err := m.Request("market.eosusdt.detail")
+			fmt.Println(err, rep)
+		}
+	}()
 	m.Loop()
+
+	m.Destroy()
+	fmt.Println(m)
 }

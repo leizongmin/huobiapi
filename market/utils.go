@@ -16,14 +16,7 @@ func getRandomString(n uint) string {
 	return string(b)
 }
 
-func getMapKeys(data map[string]bool) []string {
-	var keys []string
-	for k, _ := range data {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
+/// 取毫秒时间戳
 func getUinxMillisecond() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
