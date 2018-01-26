@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMarket(t *testing.T) {
+func TestNewMarket(t *testing.T) {
 	m, err := NewMarket()
 	assert.NoError(t, err)
 
@@ -33,7 +33,7 @@ func TestMarket(t *testing.T) {
 	// 阻塞事件循环
 	fmt.Println(m)
 	go func() {
-		time.Sleep(time.Second * 20)
+		time.Sleep(time.Second * 10)
 		m.Close()
 	}()
 	m.Loop()
@@ -43,7 +43,7 @@ func TestMarket(t *testing.T) {
 	// 重新连接
 	m.ReConnect()
 	go func() {
-		time.Sleep(time.Second * 20)
+		time.Sleep(time.Second * 12)
 		m.Close()
 	}()
 	go func() {
@@ -55,6 +55,15 @@ func TestMarket(t *testing.T) {
 	}()
 	m.Loop()
 
-	m.Destroy()
 	fmt.Println(m)
+	time.Sleep(time.Hour * 12)
 }
+
+//func TestMarketAlive(t *testing.T) {
+//	m, err := NewMarket()
+//	assert.NoError(t, err)
+//	go func() {
+//
+//	}()
+//	m.Loop()
+//}

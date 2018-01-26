@@ -30,9 +30,5 @@ func unGzipData(buf []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	msg, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return msg, nil
+	return ioutil.ReadAll(r)
 }
