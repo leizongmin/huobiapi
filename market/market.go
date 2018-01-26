@@ -1,11 +1,8 @@
 package market
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"time"
 
 	"sync"
@@ -26,12 +23,21 @@ var PollingDelay time.Duration = time.Millisecond * 100
 /// Websocket未连接错误
 var ConnectionClosedError = fmt.Errorf("websocket connection closed")
 
+type wsOperation struct {
+	cmd  string
+	data interface{}
+}
+
 type Market struct {
 	lock sync.RWMutex
 
-	ws                *websocket.Conn
-	connected         bool
-	userClosed        bool
+	connected  bool
+	userClosed bool
+	destroyed  bool
+
+	ws       *websocket.Conn
+	wsOpChan chan wsOperation
+
 	listeners         map[string]Listener
 	subscribedTopic   map[string]bool
 	subscribeResultCb map[string]jsonChan
@@ -55,6 +61,7 @@ func NewMarket() (m *Market, err error) {
 		HeartbeatInterval: 5 * time.Second,
 		ReceiveTimeout:    10 * time.Second,
 		listeners:         make(map[string]Listener),
+		wsOpChan:          make(chan wsOperation),
 	}
 	m.initData()
 
@@ -133,6 +140,9 @@ func (m *Market) reconnectDelay() {
 
 /// 等待连接成功再返回
 func (m *Market) waitConnected() {
+	if m.destroyed {
+		return
+	}
 	for !m.connected {
 		m.pollingDelay()
 	}
@@ -162,11 +172,10 @@ func (m *Market) readMessage() (msg []byte, err error) {
 
 	m.lock.RLock()
 	var n int
-	var buf []byte
 	if !m.connected {
 		err = ConnectionClosedError
 	} else {
-		n, buf, err = m.ws.ReadMessage()
+		n, msg, err = m.ws.ReadMessage()
 	}
 	m.lock.RUnlock()
 	if err != nil {
@@ -178,16 +187,7 @@ func (m *Market) readMessage() (msg []byte, err error) {
 	} else if n < 1 {
 		return msg, nil
 	} else {
-		// 接受到的数据要gzip解压
-		if r, err := gzip.NewReader(bytes.NewBuffer(buf)); err != nil {
-			return msg, nil
-		} else {
-			if msg, err := ioutil.ReadAll(r); err != nil {
-				return msg, nil
-			} else {
-				return msg, nil
-			}
-		}
+		return unGzipData(msg)
 	}
 }
 
@@ -219,7 +219,7 @@ func (m *Market) sendMessage(data interface{}) error {
 /// 处理消息循环
 func (m *Market) handleMessageLoop() {
 	debug.Println("startHandleMessageLoop")
-	for {
+	for !m.destroyed {
 		m.waitConnected()
 		msg, err := m.readMessage()
 
@@ -303,7 +303,7 @@ func (m *Market) handleMessageLoop() {
 /// 保持活跃
 func (m *Market) keepAlive() {
 	debug.Println("startKeepAlive")
-	for {
+	for !m.destroyed {
 		m.waitConnected()
 		time.Sleep(m.HeartbeatInterval)
 
@@ -474,6 +474,7 @@ func (m *Market) Destroy() (err error) {
 	}
 
 	m.lock.Lock()
+	m.destroyed = true
 	m.ws = nil
 	m.listeners = nil
 	m.subscribedTopic = nil
