@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"os"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,4 +42,19 @@ func TestClient_Request(t *testing.T) {
 	json, err = client.Request("GET", "/market/history/trade", ParamData{"symbol": "eosusdt", "size": "10"})
 	assert.NoError(t, err)
 	fmt.Println(json)
+}
+
+func TestTradeRequest(t *testing.T) {
+	accessKeyId, ok := os.LookupEnv("TEST_KEY")
+	assert.True(t, ok)
+	accessKeySecret, ok := os.LookupEnv("TEST_SECRET")
+	assert.True(t, ok)
+	client, err := NewClient(Endpoint, accessKeyId, accessKeySecret)
+	assert.NoError(t, err)
+	json, err := client.Request("GET", "/v1/order/matchresults", ParamData{"symbol": "eosusdt"})
+	assert.NoError(t, err)
+	fmt.Println(json)
+	b, err := json.EncodePretty()
+	assert.NoError(t, err)
+	fmt.Println(string(b))
 }

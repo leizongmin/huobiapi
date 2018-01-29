@@ -30,7 +30,8 @@ func SendRequest(sign *Sign, method, scheme, host, path string, data ParamData) 
 		data = ParamData{}
 	}
 
-	if s, err := sign.Get(method, host, path, time.Now().Format("2017-05-11T15:19:30"), data); err != nil {
+	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
+	if s, err := sign.Get(method, host, path, timestamp, data); err != nil {
 		return nil, err
 	} else {
 		data["Signature"] = s
