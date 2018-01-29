@@ -56,14 +56,14 @@ func TestNewMarket(t *testing.T) {
 	m.Loop()
 
 	fmt.Println(m)
-	time.Sleep(time.Hour * 12)
 }
 
-//func TestMarketAlive(t *testing.T) {
-//	m, err := NewMarket()
-//	assert.NoError(t, err)
-//	go func() {
-//
-//	}()
-//	m.Loop()
-//}
+func TestMarketAlive(t *testing.T) {
+	m, err := NewMarket()
+	assert.NoError(t, err)
+	go func() {
+		time.Sleep(time.Minute * 10)
+		m.Close()
+	}()
+	m.Loop()
+}

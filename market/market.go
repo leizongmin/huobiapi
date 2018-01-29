@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"math"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/leizongmin/huobiapi/debug"
 )
@@ -28,6 +30,9 @@ type Market struct {
 	subscribeResultCb map[string]jsonChan
 	requestResultCb   map[string]jsonChan
 
+	// 掉线后是否自动重连，如果用户主动执行Close()则不自动重连
+	autoReconnect bool
+
 	// 上次接收到的ping时间戳
 	lastPing int64
 
@@ -46,6 +51,7 @@ func NewMarket() (m *Market, err error) {
 		HeartbeatInterval: 5 * time.Second,
 		ReceiveTimeout:    10 * time.Second,
 		ws:                nil,
+		autoReconnect:     true,
 		listeners:         make(map[string]Listener),
 		subscribeResultCb: make(map[string]jsonChan),
 		requestResultCb:   make(map[string]jsonChan),
@@ -179,12 +185,18 @@ func (m *Market) keepAlive() {
 	m.ws.KeepAlive(m.HeartbeatInterval, func() {
 		var t = getUinxMillisecond()
 		m.sendMessage(pingData{Ping: t})
+
 		// 检查上次ping时间，如果超过20秒无响应，重新连接
-		//tr := time.Duration(math.Abs(float64(t - m.lastPing)))
-		//if tr >= m.HeartbeatInterval*2 {
-		//	debug.Println("no ping max delay", tr, m.HeartbeatInterval*2, t, m.lastPing)
-		//	m.reconnectDelay()
-		//}
+		tr := time.Duration(math.Abs(float64(t - m.lastPing)))
+		if tr >= m.HeartbeatInterval*2 {
+			debug.Println("no ping max delay", tr, m.HeartbeatInterval*2, t, m.lastPing)
+			if m.autoReconnect {
+				err := m.reconnect()
+				if err != nil {
+					debug.Println(err)
+				}
+			}
+		}
 	})
 }
 
@@ -263,7 +275,11 @@ func (m *Market) Loop() {
 			break
 		}
 		if err != nil {
-			m.reconnect()
+			if m.autoReconnect {
+				m.reconnect()
+			} else {
+				break
+			}
 		}
 	}
 	debug.Println("endLoop")
@@ -272,8 +288,8 @@ func (m *Market) Loop() {
 /// 重新连接
 func (m *Market) ReConnect() (err error) {
 	debug.Println("reconnect")
-	err = m.ws.Destroy()
-	if err != nil {
+	m.autoReconnect = true
+	if err = m.ws.Destroy(); err != nil {
 		return err
 	}
 	return m.reconnect()
@@ -282,5 +298,9 @@ func (m *Market) ReConnect() (err error) {
 /// 关闭连接
 func (m *Market) Close() error {
 	debug.Println("close")
-	return m.ws.Destroy()
+	m.autoReconnect = false
+	if err := m.ws.Destroy(); err != nil {
+		return err
+	}
+	return nil
 }

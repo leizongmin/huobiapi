@@ -25,7 +25,7 @@ type SafeWebSocketMessageListener = func(b []byte)
 type SafeWebSocketAliveHandler = func()
 
 func NewSafeWebSocket(endpoint string) (*SafeWebSocket, error) {
-	ws, _, err := websocket.DefaultDialer.Dial(Endpoint, nil)
+	ws, _, err := websocket.DefaultDialer.Dial(endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,13 +84,15 @@ func (s *SafeWebSocket) KeepAlive(v time.Duration, h SafeWebSocketAliveHandler) 
 	s.aliveHandler = h
 }
 
-func (s *SafeWebSocket) Destroy() error {
+func (s *SafeWebSocket) Destroy() (err error) {
 	s.lastError = SafeWebSocketDestroyError
 	for !s.runningTaskRead && !s.runningTaskSend && !s.runningTaskAlive {
 		time.Sleep(time.Millisecond * 100)
 	}
-	err := s.ws.Close()
-	s.ws = nil
+	if s.ws != nil {
+		err = s.ws.Close()
+		s.ws = nil
+	}
 	s.listener = nil
 	s.aliveHandler = nil
 	s.sendQueue = nil
