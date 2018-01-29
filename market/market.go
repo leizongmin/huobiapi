@@ -273,11 +273,11 @@ func (m *Market) Loop() {
 	debug.Println("startLoop")
 	for {
 		err := m.ws.Loop()
-		if err == SafeWebSocketDestroyError {
-			break
-		}
 		if err != nil {
-			if m.autoReconnect {
+			debug.Println(err)
+			if err == SafeWebSocketDestroyError {
+				break
+			} else if m.autoReconnect {
 				m.reconnect()
 			} else {
 				break

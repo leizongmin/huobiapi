@@ -35,8 +35,7 @@ func NewSafeWebSocket(endpoint string) (*SafeWebSocket, error) {
 		s.runningTaskSend = true
 		for s.lastError == nil {
 			b := <-s.sendQueue
-			err := s.ws.WriteMessage(websocket.TextMessage, b)
-			if err != nil {
+			if err := s.ws.WriteMessage(websocket.TextMessage, b); err != nil {
 				s.lastError = err
 				break
 			}
