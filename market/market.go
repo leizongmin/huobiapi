@@ -84,7 +84,9 @@ func (m *Market) connect() error {
 
 /// 重新连接
 func (m *Market) reconnect() error {
-	debug.Println("reconnecting")
+	debug.Println("reconnecting after 1s")
+	time.Sleep(time.Second)
+
 	if err := m.connect(); err != nil {
 		debug.Println(err)
 		return err

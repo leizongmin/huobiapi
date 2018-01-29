@@ -61,6 +61,10 @@ func TestNewMarket(t *testing.T) {
 func TestMarketAlive(t *testing.T) {
 	m, err := NewMarket()
 	assert.NoError(t, err)
+	err = m.Subscribe("market.eosusdt.kline.1min", func(topic string, json *simplejson.Json) {
+		fmt.Println(topic, json)
+	})
+	assert.NoError(t, err)
 	go func() {
 		time.Sleep(time.Minute * 10)
 		m.Close()
