@@ -11,10 +11,10 @@ import (
 	"github.com/leizongmin/huobiapi/debug"
 )
 
-/// 行情的Websocket入口
+// Endpoint 行情的Websocket入口
 var Endpoint = "wss://api.huobi.pro/ws"
 
-/// Websocket未连接错误
+// ConnectionClosedError Websocket未连接错误
 var ConnectionClosedError = fmt.Errorf("websocket connection closed")
 
 type wsOperation struct {
@@ -42,10 +42,10 @@ type Market struct {
 	ReceiveTimeout time.Duration
 }
 
-/// 订阅事件监听器
+// Listener 订阅事件监听器
 type Listener = func(topic string, json *simplejson.Json)
 
-/// 创建Market实例
+// NewMarket 创建Market实例
 func NewMarket() (m *Market, err error) {
 	m = &Market{
 		HeartbeatInterval: 5 * time.Second,
@@ -65,7 +65,7 @@ func NewMarket() (m *Market, err error) {
 	return m, nil
 }
 
-/// 连接
+// connect 连接
 func (m *Market) connect() error {
 	debug.Println("connecting")
 	ws, err := NewSafeWebSocket(Endpoint)
@@ -82,7 +82,7 @@ func (m *Market) connect() error {
 	return nil
 }
 
-/// 重新连接
+// reconnect 重新连接
 func (m *Market) reconnect() error {
 	debug.Println("reconnecting after 1s")
 	time.Sleep(time.Second)
@@ -104,7 +104,7 @@ func (m *Market) reconnect() error {
 	return nil
 }
 
-/// 发送消息
+// sendMessage 发送消息
 func (m *Market) sendMessage(data interface{}) error {
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -115,7 +115,7 @@ func (m *Market) sendMessage(data interface{}) error {
 	return nil
 }
 
-/// 处理消息循环
+// handleMessageLoop 处理消息循环
 func (m *Market) handleMessageLoop() {
 	m.ws.Listen(func(buf []byte) {
 		msg, err := unGzipData(buf)
@@ -183,7 +183,7 @@ func (m *Market) handleMessageLoop() {
 	})
 }
 
-/// 保持活跃
+// keepAlive 保持活跃
 func (m *Market) keepAlive() {
 	m.ws.KeepAlive(m.HeartbeatInterval, func() {
 		var t = getUinxMillisecond()
@@ -203,7 +203,7 @@ func (m *Market) keepAlive() {
 	})
 }
 
-/// 处理Ping
+// handlePing 处理Ping
 func (m *Market) handlePing(ping pingData) (err error) {
 	debug.Println("handlePing", ping)
 	m.lastPing = ping.Ping
@@ -215,7 +215,7 @@ func (m *Market) handlePing(ping pingData) (err error) {
 	return nil
 }
 
-/// 订阅
+// Subscribe 订阅
 func (m *Market) Subscribe(topic string, listener Listener) error {
 	debug.Println("subscribe", topic)
 
@@ -243,14 +243,14 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 	return nil
 }
 
-/// 取消订阅
+// Unsubscribe 取消订阅
 func (m *Market) Unsubscribe(topic string) {
 	debug.Println("unSubscribe", topic)
 	// 火币网没有提供取消订阅的接口，只能删除监听器
 	delete(m.listeners, topic)
 }
 
-/// 请求行情信息
+// Request 请求行情信息
 func (m *Market) Request(req string) (*simplejson.Json, error) {
 	var id = getRandomString(10)
 	m.requestResultCb[id] = make(jsonChan)
@@ -269,7 +269,7 @@ func (m *Market) Request(req string) (*simplejson.Json, error) {
 	return json, nil
 }
 
-/// 进入循环
+// Loop 进入循环
 func (m *Market) Loop() {
 	debug.Println("startLoop")
 	for {
@@ -288,7 +288,7 @@ func (m *Market) Loop() {
 	debug.Println("endLoop")
 }
 
-/// 重新连接
+// ReConnect 重新连接
 func (m *Market) ReConnect() (err error) {
 	debug.Println("reconnect")
 	m.autoReconnect = true
@@ -298,7 +298,7 @@ func (m *Market) ReConnect() (err error) {
 	return m.reconnect()
 }
 
-/// 关闭连接
+// Close 关闭连接
 func (m *Market) Close() error {
 	debug.Println("close")
 	m.autoReconnect = false
