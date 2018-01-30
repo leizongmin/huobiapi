@@ -7,6 +7,7 @@ import (
 
 	"github.com/bitly/go-simplejson"
 	"github.com/stretchr/testify/assert"
+	"github.com/leizongmin/huobiapi/data_type"
 )
 
 func TestNewMarket(t *testing.T) {
@@ -18,6 +19,9 @@ func TestNewMarket(t *testing.T) {
 	}()
 	m.Subscribe("market.eosusdt.trade.detail", func(topic string, json *simplejson.Json) {
 		fmt.Println(topic, json)
+		b, err := json.Encode()
+		assert.NoError(t, err)
+		fmt.Println(data_type.DecodeTrade(b))
 	})
 	m.Loop()
 }
