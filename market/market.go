@@ -92,6 +92,7 @@ func (m *Market) reconnect() error {
 		return err
 	}
 
+	// 重新订阅
 	var listeners = make(map[string]Listener)
 	for k, v := range m.listeners {
 		listeners[k] = v

@@ -46,9 +46,15 @@ func TestClient_Request(t *testing.T) {
 
 func TestTradeRequest(t *testing.T) {
 	accessKeyId, ok := os.LookupEnv("TEST_KEY")
-	assert.True(t, ok)
+	if !ok {
+		fmt.Println("取消测试Trade接口")
+		return
+	}
 	accessKeySecret, ok := os.LookupEnv("TEST_SECRET")
-	assert.True(t, ok)
+	if !ok {
+		fmt.Println("取消测试Trade接口")
+		return
+	}
 	client, err := NewClient(Endpoint, accessKeyId, accessKeySecret)
 	assert.NoError(t, err)
 	json, err := client.Request("GET", "/v1/order/matchresults", ParamData{"symbol": "eosusdt"})

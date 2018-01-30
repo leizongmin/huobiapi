@@ -64,9 +64,12 @@ func TestMarketAlive(t *testing.T) {
 	err = m.Subscribe("market.eosusdt.kline.1min", func(topic string, json *simplejson.Json) {
 		fmt.Println(topic, json)
 	})
+	err = m.Subscribe("market.eosusdt.kline.1min", func(topic string, json *simplejson.Json) {
+		fmt.Println(topic, json)
+	})
 	assert.NoError(t, err)
 	go func() {
-		time.Sleep(time.Minute * 10)
+		time.Sleep(time.Minute * 2)
 		m.Close()
 	}()
 	m.Loop()
