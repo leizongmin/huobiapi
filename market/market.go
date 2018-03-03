@@ -9,6 +9,7 @@ import (
 
 	"github.com/bitly/go-simplejson"
 	"github.com/leizongmin/huobiapi/debug"
+	"sync"
 )
 
 // Endpoint 行情的Websocket入口
@@ -25,7 +26,7 @@ type wsOperation struct {
 type Market struct {
 	ws *SafeWebSocket
 
-	listeners         map[string]Listener
+	listeners         *sync.Map
 	subscribedTopic   map[string]bool
 	subscribeResultCb map[string]jsonChan
 	requestResultCb   map[string]jsonChan
@@ -52,7 +53,7 @@ func NewMarket() (m *Market, err error) {
 		ReceiveTimeout:    10 * time.Second,
 		ws:                nil,
 		autoReconnect:     true,
-		listeners:         make(map[string]Listener),
+		listeners:         &sync.Map{},
 		subscribeResultCb: make(map[string]jsonChan),
 		requestResultCb:   make(map[string]jsonChan),
 		subscribedTopic:   make(map[string]bool),
@@ -94,9 +95,10 @@ func (m *Market) reconnect() error {
 
 	// 重新订阅
 	var listeners = make(map[string]Listener)
-	for k, v := range m.listeners {
-		listeners[k] = v
-	}
+	m.listeners.Range(func(key, value interface{}) bool {
+		listeners[key.(string)] = value.(Listener)
+		return true
+	})
 	for topic, listener := range listeners {
 		delete(m.subscribedTopic, topic)
 		m.Subscribe(topic, listener)
@@ -144,10 +146,10 @@ func (m *Market) handleMessageLoop() {
 
 		// 处理订阅消息
 		if ch := json.Get("ch").MustString(); ch != "" {
-			listener, ok := m.listeners[ch]
+			listener, ok := m.listeners.Load(ch)
 			if ok {
 				debug.Println("handleSubscribe", json)
-				listener(ch, json)
+				listener.(Listener)(ch, json)
 			}
 			return
 		}
@@ -230,7 +232,7 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 		debug.Println("send subscribe before, reset listener only")
 	}
 
-	m.listeners[topic] = listener
+	m.listeners.Store(topic, listener)
 	m.subscribedTopic[topic] = true
 
 	if isNew {
@@ -247,7 +249,7 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 func (m *Market) Unsubscribe(topic string) {
 	debug.Println("unSubscribe", topic)
 	// 火币网没有提供取消订阅的接口，只能删除监听器
-	delete(m.listeners, topic)
+	m.listeners.Delete(topic)
 }
 
 // Request 请求行情信息
