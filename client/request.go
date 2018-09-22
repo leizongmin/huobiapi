@@ -31,14 +31,22 @@ func SendRequest(sign *Sign, method, scheme, host, path string, data ParamData) 
 	}
 
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05")
-	if s, err := sign.Get(method, host, path, timestamp, data); err != nil {
+	// 参与计算签名的参数
+	signData := make(map[string]string)
+	if isGetMethod(method) {
+		// GET 请求所有参数都参与签名计算，POST 请求业务参数不参与签名计算
+		for k, v := range data {
+			signData[k] = v
+		}
+	}
+	if s, err := sign.Get(method, host, path, timestamp, signData); err != nil {
 		return nil, err
 	} else {
-		data["Signature"] = s
+		signData["Signature"] = s
 	}
-	if isGetMethod(method) {
-		path += "?" + encodeQueryString(data)
-	} else {
+	path += "?" + encodeQueryString(signData)
+	if isGetMethod(method) == false {
+		// POST 请求 JSON
 		if b, err := json.Marshal(data); err != nil {
 			return nil, err
 		} else {
