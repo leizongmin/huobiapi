@@ -87,8 +87,6 @@ func (m *Market) connect() error {
 // reconnect 重新连接
 func (m *Market) reconnect() error {
 	debug.Println("reconnecting after 1s")
-	m.listenerMutex.Lock()
-	defer m.listenerMutex.Unlock()
 	time.Sleep(time.Second)
 
 	if err := m.connect(); err != nil {
@@ -97,10 +95,13 @@ func (m *Market) reconnect() error {
 	}
 
 	// 重新订阅
+	m.listenerMutex.Lock()
 	var listeners = make(map[string]Listener)
 	for k, v := range m.listeners {
 		listeners[k] = v
 	}
+	m.listenerMutex.Unlock()
+
 	for topic, listener := range listeners {
 		delete(m.subscribedTopic, topic)
 		m.Subscribe(topic, listener)
@@ -149,8 +150,8 @@ func (m *Market) handleMessageLoop() {
 		// 处理订阅消息
 		if ch := json.Get("ch").MustString(); ch != "" {
 			m.listenerMutex.Lock()
-			defer m.listenerMutex.Unlock()
 			listener, ok := m.listeners[ch]
+			m.listenerMutex.Unlock()
 			if ok {
 				debug.Println("handleSubscribe", json)
 				listener(ch, json)
@@ -225,9 +226,6 @@ func (m *Market) handlePing(ping pingData) (err error) {
 func (m *Market) Subscribe(topic string, listener Listener) error {
 	debug.Println("subscribe", topic)
 
-	m.listenerMutex.Lock()
-	defer m.listenerMutex.Unlock()
-
 	var isNew = false
 
 	// 如果未曾发送过订阅指令，则发送，并等待订阅操作结果，否则直接返回
@@ -239,7 +237,9 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 		debug.Println("send subscribe before, reset listener only")
 	}
 
+	m.listenerMutex.Lock()
 	m.listeners[topic] = listener
+	m.listenerMutex.Unlock()
 	m.subscribedTopic[topic] = true
 
 	if isNew {
@@ -257,9 +257,9 @@ func (m *Market) Unsubscribe(topic string) {
 	debug.Println("unSubscribe", topic)
 
 	m.listenerMutex.Lock()
-	defer m.listenerMutex.Unlock()
 	// 火币网没有提供取消订阅的接口，只能删除监听器
 	delete(m.listeners, topic)
+	m.listenerMutex.Unlock()
 }
 
 // Request 请求行情信息
