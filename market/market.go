@@ -9,6 +9,7 @@ import (
 
 	"github.com/bitly/go-simplejson"
 	"github.com/leizongmin/huobiapi/debug"
+	"sync"
 )
 
 // Endpoint 行情的Websocket入口
@@ -26,6 +27,7 @@ type Market struct {
 	ws *SafeWebSocket
 
 	listeners         map[string]Listener
+	listenerMutex     sync.Mutex
 	subscribedTopic   map[string]bool
 	subscribeResultCb map[string]jsonChan
 	requestResultCb   map[string]jsonChan
@@ -93,10 +95,13 @@ func (m *Market) reconnect() error {
 	}
 
 	// 重新订阅
+	m.listenerMutex.Lock()
 	var listeners = make(map[string]Listener)
 	for k, v := range m.listeners {
 		listeners[k] = v
 	}
+	m.listenerMutex.Unlock()
+
 	for topic, listener := range listeners {
 		delete(m.subscribedTopic, topic)
 		m.Subscribe(topic, listener)
@@ -144,7 +149,9 @@ func (m *Market) handleMessageLoop() {
 
 		// 处理订阅消息
 		if ch := json.Get("ch").MustString(); ch != "" {
+			m.listenerMutex.Lock()
 			listener, ok := m.listeners[ch]
+			m.listenerMutex.Unlock()
 			if ok {
 				debug.Println("handleSubscribe", json)
 				listener(ch, json)
@@ -230,7 +237,9 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 		debug.Println("send subscribe before, reset listener only")
 	}
 
+	m.listenerMutex.Lock()
 	m.listeners[topic] = listener
+	m.listenerMutex.Unlock()
 	m.subscribedTopic[topic] = true
 
 	if isNew {
@@ -246,8 +255,11 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 // Unsubscribe 取消订阅
 func (m *Market) Unsubscribe(topic string) {
 	debug.Println("unSubscribe", topic)
+
+	m.listenerMutex.Lock()
 	// 火币网没有提供取消订阅的接口，只能删除监听器
 	delete(m.listeners, topic)
+	m.listenerMutex.Unlock()
 }
 
 // Request 请求行情信息
