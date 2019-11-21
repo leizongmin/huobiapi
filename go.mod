@@ -1,4 +1,4 @@
-module huobiapi
+module github.com/cmdedj/huobiapi
 
 go 1.13
 
