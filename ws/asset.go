@@ -306,3 +306,9 @@ func (asset *Asset) Close() error {
 	}
 	return nil
 }
+
+
+func (asset * Asset) Auth() error {
+	// TODO
+	return nil
+}
