@@ -309,6 +309,6 @@ func (asset *Asset) Close() error {
 
 
 func (asset * Asset) Auth() error {
-	// TODO
+	// TODO ddd
 	return nil
 }
