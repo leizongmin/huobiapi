@@ -1,4 +1,4 @@
-package market
+package ws
 
 import (
 	"fmt"

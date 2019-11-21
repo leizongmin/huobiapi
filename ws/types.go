@@ -1,4 +1,4 @@
-package market
+package ws
 
 import "github.com/bitly/go-simplejson"
 
