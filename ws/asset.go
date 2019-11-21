@@ -11,7 +11,7 @@ import (
 )
 
 // Endpoint 行情的Websocket入口
-var assetEndpoint = "wss://api.huobi.pro/ws"
+var assetEndpoint = "wss://api-aws.huobi.pro/ws/v1"
 
 type Asset struct {
 	ws *SafeWebSocket
@@ -103,6 +103,7 @@ func (asset *Asset) sendMessage(data interface{}) error {
 		return nil
 	}
 	debug.Println("sendMessage", string(b))
+	fmt.Println(string(b))
 	asset.ws.Send(b)
 	return nil
 }
@@ -121,6 +122,8 @@ func (asset *Asset) handleMessageLoop() {
 			debug.Println(err)
 			return
 		}
+
+		fmt.Println(json)
 
 		// 处理ping消息
 		if ping := json.Get("ping").MustInt64(); ping > 0 {
@@ -308,7 +311,33 @@ func (asset *Asset) Close() error {
 }
 
 
-func (asset * Asset) Auth() error {
-	// TODO ddd
+func (asset * Asset) Auth(accessKeyId, accessKeySecret string) error {
+	params := make(map[string]string)
+
+	params["AccessKeyId"] = accessKeyId
+	params["SignatureMethod"] = "HmacSHA256"
+	params["SignatureVersion"] = "2"
+	params["Timestamp"] = time.Now().Format("2006-01-02T15:04:05")
+
+	authData := AuthData{
+		Op:              "auth",
+		Cid:              "xxxxxxxxxxxxx",
+		AccessKeyId:      params["AccessKeyId"],
+		SignatureMethod:  params["SignatureMethod"],
+		SignatureVersion: params["SignatureVersion"],
+		Timestamp:        params["Timestamp"],
+		Signature:        GenSignature(params, accessKeySecret),
+	}
+
+	if err := asset.sendMessage(authData); err != nil {
+		return err
+	}
+	time.Sleep(3 * time.Second)
+	asset.sendMessage(AccountsList{
+		Op:    "req",
+		Cid:   "xxxxxx",
+		Topic: "accounts.list",
+	})
+
 	return nil
 }

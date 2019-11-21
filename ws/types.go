@@ -20,6 +20,22 @@ type reqData struct {
 	ID  string `json:"id"`
 }
 
+type AuthData struct {
+	Op               string `json:"op"`
+	Cid              string `json:"cid"`
+	AccessKeyId      string `json:"AccessKeyId"`
+	SignatureMethod  string `json:"SignatureMethod"`
+	SignatureVersion string `json:"SignatureVersion"`
+	Timestamp        string `json:"Timestamp"`
+	Signature        string `json:"Signature"`
+}
+
+type AccountsList struct {
+	Op    string `json:"op"`
+	Cid   string `json:"cid"`
+	Topic string `json:"topic"`
+}
+
 type jsonChan = chan *simplejson.Json
 
 // Listener 订阅事件监听器
