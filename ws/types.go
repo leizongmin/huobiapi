@@ -21,3 +21,6 @@ type reqData struct {
 }
 
 type jsonChan = chan *simplejson.Json
+
+// Listener 订阅事件监听器
+type Listener = func(topic string, json *simplejson.Json)

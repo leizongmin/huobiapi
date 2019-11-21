@@ -3,17 +3,17 @@ package ws
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-	"math"
 	"github.com/bitly/go-simplejson"
 	"huobiapi/debug"
+	"math"
 	"sync"
+	"time"
 )
 
 // Endpoint 行情的Websocket入口
-var marketEndpoint = "wss://api.huobi.pro/ws"
+var assetEndpoint = "wss://api.huobi.pro/ws"
 
-type Market struct {
+type Asset struct {
 	ws *SafeWebSocket
 
 	listeners         map[string]Listener
@@ -35,8 +35,8 @@ type Market struct {
 }
 
 // NewMarket 创建Market实例
-func NewMarket() (m *Market, err error) {
-	m = &Market{
+func NewAsset() (asset *Asset, err error) {
+	asset = &Asset{
 		HeartbeatInterval: 5 * time.Second,
 		ReceiveTimeout:    10 * time.Second,
 		ws:                nil,
@@ -47,69 +47,69 @@ func NewMarket() (m *Market, err error) {
 		subscribedTopic:   make(map[string]bool),
 	}
 
-	if err := m.connect(); err != nil {
+	if err := asset.connect(); err != nil {
 		return nil, err
 	}
 
-	return m, nil
+	return asset, nil
 }
 
 // connect 连接
-func (m *Market) connect() error {
+func (asset *Asset) connect() error {
 	debug.Println("connecting")
-	ws, err := NewSafeWebSocket(marketEndpoint)
+	ws, err := NewSafeWebSocket(assetEndpoint)
 	if err != nil {
 		return err
 	}
-	m.ws = ws
-	m.lastPing = getUinxMillisecond()
+	asset.ws = ws
+	asset.lastPing = getUinxMillisecond()
 	debug.Println("connected")
 
-	m.handleMessageLoop()
-	m.keepAlive()
+	asset.handleMessageLoop()
+	asset.keepAlive()
 
 	return nil
 }
 
 // reconnect 重新连接
-func (m *Market) reconnect() error {
+func (asset *Asset) reconnect() error {
 	debug.Println("reconnecting after 1s")
 	time.Sleep(time.Second)
 
-	if err := m.connect(); err != nil {
+	if err := asset.connect(); err != nil {
 		debug.Println(err)
 		return err
 	}
 
 	// 重新订阅
-	m.listenerMutex.Lock()
+	asset.listenerMutex.Lock()
 	var listeners = make(map[string]Listener)
-	for k, v := range m.listeners {
+	for k, v := range asset.listeners {
 		listeners[k] = v
 	}
-	m.listenerMutex.Unlock()
+	asset.listenerMutex.Unlock()
 
 	for topic, listener := range listeners {
-		delete(m.subscribedTopic, topic)
-		m.Subscribe(topic, listener)
+		delete(asset.subscribedTopic, topic)
+		asset.Subscribe(topic, listener)
 	}
 	return nil
 }
 
 // sendMessage 发送消息
-func (m *Market) sendMessage(data interface{}) error {
+func (asset *Asset) sendMessage(data interface{}) error {
 	b, err := json.Marshal(data)
 	if err != nil {
 		return nil
 	}
 	debug.Println("sendMessage", string(b))
-	m.ws.Send(b)
+	asset.ws.Send(b)
 	return nil
 }
 
 // handleMessageLoop 处理消息循环
-func (m *Market) handleMessageLoop() {
-	m.ws.Listen(func(buf []byte) {
+func (asset *Asset) handleMessageLoop() {
+	asset.ws.Listen(func(buf []byte) {
 		msg, err := unGzipData(buf)
 		debug.Println("readMessage", string(msg))
 		if err != nil {
@@ -124,21 +124,21 @@ func (m *Market) handleMessageLoop() {
 
 		// 处理ping消息
 		if ping := json.Get("ping").MustInt64(); ping > 0 {
-			m.handlePing(pingData{Ping: ping})
+			asset.handlePing(pingData{Ping: ping})
 			return
 		}
 
 		// 处理pong消息
 		if pong := json.Get("pong").MustInt64(); pong > 0 {
-			m.lastPing = pong
+			asset.lastPing = pong
 			return
 		}
 
 		// 处理订阅消息
 		if ch := json.Get("ch").MustString(); ch != "" {
-			m.listenerMutex.Lock()
-			listener, ok := m.listeners[ch]
-			m.listenerMutex.Unlock()
+			asset.listenerMutex.Lock()
+			listener, ok := asset.listeners[ch]
+			asset.listenerMutex.Unlock()
 			if ok {
 				debug.Println("handleSubscribe", json)
 				listener(ch, json)
@@ -148,7 +148,7 @@ func (m *Market) handleMessageLoop() {
 
 		// 处理订阅成功通知
 		if subbed := json.Get("subbed").MustString(); subbed != "" {
-			c, ok := m.subscribeResultCb[subbed]
+			c, ok := asset.subscribeResultCb[subbed]
 			if ok {
 				c <- json
 			}
@@ -157,7 +157,7 @@ func (m *Market) handleMessageLoop() {
 
 		// 请求行情结果
 		if rep, id := json.Get("rep").MustString(), json.Get("id").MustString(); rep != "" && id != "" {
-			c, ok := m.requestResultCb[id]
+			c, ok := asset.requestResultCb[id]
 			if ok {
 				c <- json
 			}
@@ -168,7 +168,7 @@ func (m *Market) handleMessageLoop() {
 		if status := json.Get("status").MustString(); status == "error" {
 			// 判断是否为订阅失败
 			id := json.Get("id").MustString()
-			c, ok := m.subscribeResultCb[id]
+			c, ok := asset.subscribeResultCb[id]
 			if ok {
 				c <- json
 			}
@@ -178,17 +178,17 @@ func (m *Market) handleMessageLoop() {
 }
 
 // keepAlive 保持活跃
-func (m *Market) keepAlive() {
-	m.ws.KeepAlive(m.HeartbeatInterval, func() {
+func (asset *Asset) keepAlive() {
+	asset.ws.KeepAlive(asset.HeartbeatInterval, func() {
 		var t = getUinxMillisecond()
-		m.sendMessage(pingData{Ping: t})
+		asset.sendMessage(pingData{Ping: t})
 
 		// 检查上次ping时间，如果超过20秒无响应，重新连接
-		tr := time.Duration(math.Abs(float64(t - m.lastPing)))
-		if tr >= m.HeartbeatInterval*2 {
-			debug.Println("no ping max delay", tr, m.HeartbeatInterval*2, t, m.lastPing)
-			if m.autoReconnect {
-				err := m.reconnect()
+		tr := time.Duration(math.Abs(float64(t - asset.lastPing)))
+		if tr >= asset.HeartbeatInterval*2 {
+			debug.Println("no ping max delay", tr, asset.HeartbeatInterval*2, t, asset.lastPing)
+			if asset.autoReconnect {
+				err := asset.reconnect()
 				if err != nil {
 					debug.Println(err)
 				}
@@ -198,11 +198,11 @@ func (m *Market) keepAlive() {
 }
 
 // handlePing 处理Ping
-func (m *Market) handlePing(ping pingData) (err error) {
+func (asset *Asset) handlePing(ping pingData) (err error) {
 	debug.Println("handlePing", ping)
-	m.lastPing = ping.Ping
+	asset.lastPing = ping.Ping
 	var pong = pongData{Pong: ping.Ping}
-	err = m.sendMessage(pong)
+	err = asset.sendMessage(pong)
 	if err != nil {
 		return err
 	}
@@ -210,27 +210,27 @@ func (m *Market) handlePing(ping pingData) (err error) {
 }
 
 // Subscribe 订阅
-func (m *Market) Subscribe(topic string, listener Listener) error {
+func (asset *Asset) Subscribe(topic string, listener Listener) error {
 	debug.Println("subscribe", topic)
 
 	var isNew = false
 
 	// 如果未曾发送过订阅指令，则发送，并等待订阅操作结果，否则直接返回
-	if _, ok := m.subscribedTopic[topic]; !ok {
-		m.subscribeResultCb[topic] = make(jsonChan)
-		m.sendMessage(subData{ID: topic, Sub: topic})
+	if _, ok := asset.subscribedTopic[topic]; !ok {
+		asset.subscribeResultCb[topic] = make(jsonChan)
+		asset.sendMessage(subData{ID: topic, Sub: topic})
 		isNew = true
 	} else {
 		debug.Println("send subscribe before, reset listener only")
 	}
 
-	m.listenerMutex.Lock()
-	m.listeners[topic] = listener
-	m.listenerMutex.Unlock()
-	m.subscribedTopic[topic] = true
+	asset.listenerMutex.Lock()
+	asset.listeners[topic] = listener
+	asset.listenerMutex.Unlock()
+	asset.subscribedTopic[topic] = true
 
 	if isNew {
-		var json = <-m.subscribeResultCb[topic]
+		var json = <-asset.subscribeResultCb[topic]
 		// 判断订阅结果，如果出错则返回出错信息
 		if msg, err := json.Get("err-msg").String(); err == nil {
 			return fmt.Errorf(msg)
@@ -240,26 +240,26 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 }
 
 // Unsubscribe 取消订阅
-func (m *Market) Unsubscribe(topic string) {
+func (asset *Asset) Unsubscribe(topic string) {
 	debug.Println("unSubscribe", topic)
 
-	m.listenerMutex.Lock()
+	asset.listenerMutex.Lock()
 	// 火币网没有提供取消订阅的接口，只能删除监听器
-	delete(m.listeners, topic)
-	m.listenerMutex.Unlock()
+	delete(asset.listeners, topic)
+	asset.listenerMutex.Unlock()
 }
 
 // Request 请求行情信息
-func (m *Market) Request(req string) (*simplejson.Json, error) {
+func (asset *Asset) Request(req string) (*simplejson.Json, error) {
 	var id = getRandomString(10)
-	m.requestResultCb[id] = make(jsonChan)
+	asset.requestResultCb[id] = make(jsonChan)
 
-	if err := m.sendMessage(reqData{Req: req, ID: id}); err != nil {
+	if err := asset.sendMessage(reqData{Req: req, ID: id}); err != nil {
 		return nil, err
 	}
-	var json = <-m.requestResultCb[id]
+	var json = <-asset.requestResultCb[id]
 
-	delete(m.requestResultCb, id)
+	delete(asset.requestResultCb, id)
 
 	// 判断是否出错
 	if msg := json.Get("err-msg").MustString(); msg != "" {
@@ -269,16 +269,16 @@ func (m *Market) Request(req string) (*simplejson.Json, error) {
 }
 
 // Loop 进入循环
-func (m *Market) Loop() {
+func (asset *Asset) Loop() {
 	debug.Println("startLoop")
 	for {
-		err := m.ws.Loop()
+		err := asset.ws.Loop()
 		if err != nil {
 			debug.Println(err)
 			if err == SafeWebSocketDestroyError {
 				break
-			} else if m.autoReconnect {
-				m.reconnect()
+			} else if asset.autoReconnect {
+				asset.reconnect()
 			} else {
 				break
 			}
@@ -288,20 +288,20 @@ func (m *Market) Loop() {
 }
 
 // ReConnect 重新连接
-func (m *Market) ReConnect() (err error) {
+func (asset *Asset) ReConnect() (err error) {
 	debug.Println("reconnect")
-	m.autoReconnect = true
-	if err = m.ws.Destroy(); err != nil {
+	asset.autoReconnect = true
+	if err = asset.ws.Destroy(); err != nil {
 		return err
 	}
-	return m.reconnect()
+	return asset.reconnect()
 }
 
 // Close 关闭连接
-func (m *Market) Close() error {
+func (asset *Asset) Close() error {
 	debug.Println("close")
-	m.autoReconnect = false
-	if err := m.ws.Destroy(); err != nil {
+	asset.autoReconnect = false
+	if err := asset.ws.Destroy(); err != nil {
 		return err
 	}
 	return nil
