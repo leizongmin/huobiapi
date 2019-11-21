@@ -6,7 +6,7 @@ import (
 	"time"
 	"math"
 	"github.com/bitly/go-simplejson"
-	"huobiapi/debug"
+	"github.com/cmdedj/huobiapi/debug"
 	"sync"
 )
 
