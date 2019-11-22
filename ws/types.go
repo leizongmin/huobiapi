@@ -3,11 +3,13 @@ package ws
 import "github.com/bitly/go-simplejson"
 
 type pongData struct {
-	Pong int64 `json:"pong"`
+	Op string `json:"op"`
+	Ts int64  `json:"ts"`
 }
 
 type pingData struct {
-	Ping int64 `json:"ping"`
+	Op string `json:"op"`
+	Ts int64  `json:"ts"`
 }
 
 type subData struct {

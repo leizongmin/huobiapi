@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bitly/go-simplejson"
-	"github.com/cmdedj/huobiapi/debug"
 	"math"
 	"sync"
 	"time"
+	log "github.com/sirupsen/logrus"
 )
 
 // Endpoint 行情的Websocket入口
@@ -56,14 +56,12 @@ func NewAsset() (asset *Asset, err error) {
 
 // connect 连接
 func (asset *Asset) connect() error {
-	debug.Println("connecting")
 	ws, err := NewSafeWebSocket(assetEndpoint)
 	if err != nil {
 		return err
 	}
 	asset.ws = ws
 	asset.lastPing = getUinxMillisecond()
-	debug.Println("connected")
 
 	asset.handleMessageLoop()
 	asset.keepAlive()
@@ -73,11 +71,11 @@ func (asset *Asset) connect() error {
 
 // reconnect 重新连接
 func (asset *Asset) reconnect() error {
-	debug.Println("reconnecting after 1s")
+
 	time.Sleep(time.Second)
 
 	if err := asset.connect(); err != nil {
-		debug.Println(err)
+
 		return err
 	}
 
@@ -102,8 +100,8 @@ func (asset *Asset) sendMessage(data interface{}) error {
 	if err != nil {
 		return nil
 	}
-	debug.Println("sendMessage", string(b))
-	fmt.Println(string(b))
+
+	log.Info("send message: ", string(b))
 	asset.ws.Send(b)
 	return nil
 }
@@ -112,24 +110,34 @@ func (asset *Asset) sendMessage(data interface{}) error {
 func (asset *Asset) handleMessageLoop() {
 	asset.ws.Listen(func(buf []byte) {
 		msg, err := unGzipData(buf)
-		debug.Println("readMessage", string(msg))
+
 		if err != nil {
-			debug.Println(err)
+
 			return
 		}
 		json, err := simplejson.NewJson(msg)
 		if err != nil {
-			debug.Println(err)
+
 			return
 		}
 
-		fmt.Println(json)
+		log.Info(json)
 
-		// 处理ping消息
-		if ping := json.Get("ping").MustInt64(); ping > 0 {
-			asset.handlePing(pingData{Ping: ping})
-			return
+		op := json.Get("op").MustString()
+
+		// 处理ping
+		if op == "ping"{
+			ts := json.Get("ts").MustInt64()
+			err := asset.handlePing(pingData{
+				Op: "ping",
+				Ts: ts,
+			})
+			if err != nil {
+				log.Error(err)
+			}
+
 		}
+
 
 		// 处理pong消息
 		if pong := json.Get("pong").MustInt64(); pong > 0 {
@@ -143,7 +151,7 @@ func (asset *Asset) handleMessageLoop() {
 			listener, ok := asset.listeners[ch]
 			asset.listenerMutex.Unlock()
 			if ok {
-				debug.Println("handleSubscribe", json)
+
 				listener(ch, json)
 			}
 			return
@@ -184,16 +192,16 @@ func (asset *Asset) handleMessageLoop() {
 func (asset *Asset) keepAlive() {
 	asset.ws.KeepAlive(asset.HeartbeatInterval, func() {
 		var t = getUinxMillisecond()
-		asset.sendMessage(pingData{Ping: t})
+		// asset.sendMessage(pingData{Ping: t})
 
 		// 检查上次ping时间，如果超过20秒无响应，重新连接
 		tr := time.Duration(math.Abs(float64(t - asset.lastPing)))
 		if tr >= asset.HeartbeatInterval*2 {
-			debug.Println("no ping max delay", tr, asset.HeartbeatInterval*2, t, asset.lastPing)
+
 			if asset.autoReconnect {
 				err := asset.reconnect()
 				if err != nil {
-					debug.Println(err)
+
 				}
 			}
 		}
@@ -202,9 +210,12 @@ func (asset *Asset) keepAlive() {
 
 // handlePing 处理Ping
 func (asset *Asset) handlePing(ping pingData) (err error) {
-	debug.Println("handlePing", ping)
-	asset.lastPing = ping.Ping
-	var pong = pongData{Pong: ping.Ping}
+
+	asset.lastPing = ping.Ts
+	var pong = pongData{
+		Op: "pong",
+		Ts: ping.Ts,
+	}
 	err = asset.sendMessage(pong)
 	if err != nil {
 		return err
@@ -214,7 +225,7 @@ func (asset *Asset) handlePing(ping pingData) (err error) {
 
 // Subscribe 订阅
 func (asset *Asset) Subscribe(topic string, listener Listener) error {
-	debug.Println("subscribe", topic)
+
 
 	var isNew = false
 
@@ -224,7 +235,7 @@ func (asset *Asset) Subscribe(topic string, listener Listener) error {
 		asset.sendMessage(subData{ID: topic, Sub: topic})
 		isNew = true
 	} else {
-		debug.Println("send subscribe before, reset listener only")
+
 	}
 
 	asset.listenerMutex.Lock()
@@ -244,7 +255,6 @@ func (asset *Asset) Subscribe(topic string, listener Listener) error {
 
 // Unsubscribe 取消订阅
 func (asset *Asset) Unsubscribe(topic string) {
-	debug.Println("unSubscribe", topic)
 
 	asset.listenerMutex.Lock()
 	// 火币网没有提供取消订阅的接口，只能删除监听器
@@ -273,11 +283,11 @@ func (asset *Asset) Request(req string) (*simplejson.Json, error) {
 
 // Loop 进入循环
 func (asset *Asset) Loop() {
-	debug.Println("startLoop")
+
 	for {
 		err := asset.ws.Loop()
 		if err != nil {
-			debug.Println(err)
+
 			if err == SafeWebSocketDestroyError {
 				break
 			} else if asset.autoReconnect {
@@ -287,12 +297,12 @@ func (asset *Asset) Loop() {
 			}
 		}
 	}
-	debug.Println("endLoop")
+
 }
 
 // ReConnect 重新连接
 func (asset *Asset) ReConnect() (err error) {
-	debug.Println("reconnect")
+
 	asset.autoReconnect = true
 	if err = asset.ws.Destroy(); err != nil {
 		return err
@@ -302,7 +312,7 @@ func (asset *Asset) ReConnect() (err error) {
 
 // Close 关闭连接
 func (asset *Asset) Close() error {
-	debug.Println("close")
+
 	asset.autoReconnect = false
 	if err := asset.ws.Destroy(); err != nil {
 		return err
@@ -329,15 +339,6 @@ func (asset * Asset) Auth(accessKeyId, accessKeySecret string) error {
 		Signature:        GenSignature(params, accessKeySecret),
 	}
 
-	if err := asset.sendMessage(authData); err != nil {
-		return err
-	}
-	time.Sleep(3 * time.Second)
-	asset.sendMessage(AccountsList{
-		Op:    "req",
-		Cid:   "xxxxxx",
-		Topic: "accounts.list",
-	})
-
-	return nil
+	err := asset.sendMessage(authData)
+	return err
 }

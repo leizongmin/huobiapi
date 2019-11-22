@@ -6,7 +6,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net/url"
@@ -62,9 +61,9 @@ func computeHmac256(data string, secret string) string {
 /// 拼接query字符串
 func encodeQueryString(query map[string]string) string {
 	var keys = sortKeys(getMapKeys(query))
-	var len = len(keys)
-	var lines = make([]string, len)
-	for i := 0; i < len; i++ {
+	var keysLen = len(keys)
+	var lines = make([]string, keysLen)
+	for i := 0; i < keysLen; i++ {
 		var k = keys[i]
 		lines[i] = url.QueryEscape(k) + "=" + url.QueryEscape(query[k])
 	}
@@ -74,7 +73,6 @@ func encodeQueryString(query map[string]string) string {
 func GenSignature(query map[string]string, accessKeySecret string) string {
 	var pre = "GET" + "\n" + "api-aws.huobi.pro" + "\n" + "/ws/v1" + "\n"
 	eqs := encodeQueryString(query)
-	fmt.Println(eqs)
 	eqs = pre + eqs
 	return computeHmac256(eqs, accessKeySecret)
 }

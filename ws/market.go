@@ -6,8 +6,8 @@ import (
 	"time"
 	"math"
 	"github.com/bitly/go-simplejson"
-	"github.com/cmdedj/huobiapi/debug"
 	"sync"
+	log "github.com/sirupsen/logrus"
 )
 
 // Endpoint 行情的Websocket入口
@@ -56,14 +56,14 @@ func NewMarket() (m *Market, err error) {
 
 // connect 连接
 func (m *Market) connect() error {
-	debug.Println("connecting")
+
 	ws, err := NewSafeWebSocket(marketEndpoint)
 	if err != nil {
 		return err
 	}
 	m.ws = ws
 	m.lastPing = getUinxMillisecond()
-	debug.Println("connected")
+
 
 	m.handleMessageLoop()
 	m.keepAlive()
@@ -73,11 +73,11 @@ func (m *Market) connect() error {
 
 // reconnect 重新连接
 func (m *Market) reconnect() error {
-	debug.Println("reconnecting after 1s")
+
 	time.Sleep(time.Second)
 
 	if err := m.connect(); err != nil {
-		debug.Println(err)
+
 		return err
 	}
 
@@ -102,7 +102,7 @@ func (m *Market) sendMessage(data interface{}) error {
 	if err != nil {
 		return nil
 	}
-	debug.Println("sendMessage", string(b))
+
 	m.ws.Send(b)
 	return nil
 }
@@ -111,21 +111,30 @@ func (m *Market) sendMessage(data interface{}) error {
 func (m *Market) handleMessageLoop() {
 	m.ws.Listen(func(buf []byte) {
 		msg, err := unGzipData(buf)
-		debug.Println("readMessage", string(msg))
+
 		if err != nil {
-			debug.Println(err)
+
 			return
 		}
 		json, err := simplejson.NewJson(msg)
 		if err != nil {
-			debug.Println(err)
+
 			return
 		}
 
-		// 处理ping消息
-		if ping := json.Get("ping").MustInt64(); ping > 0 {
-			m.handlePing(pingData{Ping: ping})
-			return
+		op := json.Get("op").MustString()
+
+		// 处理ping
+		if op == "ping"{
+			ts := json.Get("ts").MustInt64()
+			err := m.handlePing(pingData{
+				Op: "ping",
+				Ts: ts,
+			})
+			if err != nil {
+				log.Error(err)
+			}
+
 		}
 
 		// 处理pong消息
@@ -140,7 +149,7 @@ func (m *Market) handleMessageLoop() {
 			listener, ok := m.listeners[ch]
 			m.listenerMutex.Unlock()
 			if ok {
-				debug.Println("handleSubscribe", json)
+
 				listener(ch, json)
 			}
 			return
@@ -181,16 +190,16 @@ func (m *Market) handleMessageLoop() {
 func (m *Market) keepAlive() {
 	m.ws.KeepAlive(m.HeartbeatInterval, func() {
 		var t = getUinxMillisecond()
-		m.sendMessage(pingData{Ping: t})
+		// m.sendMessage(pingData{Ping: t})
 
 		// 检查上次ping时间，如果超过20秒无响应，重新连接
 		tr := time.Duration(math.Abs(float64(t - m.lastPing)))
 		if tr >= m.HeartbeatInterval*2 {
-			debug.Println("no ping max delay", tr, m.HeartbeatInterval*2, t, m.lastPing)
+
 			if m.autoReconnect {
 				err := m.reconnect()
 				if err != nil {
-					debug.Println(err)
+
 				}
 			}
 		}
@@ -199,9 +208,13 @@ func (m *Market) keepAlive() {
 
 // handlePing 处理Ping
 func (m *Market) handlePing(ping pingData) (err error) {
-	debug.Println("handlePing", ping)
-	m.lastPing = ping.Ping
-	var pong = pongData{Pong: ping.Ping}
+
+	m.lastPing = ping.Ts
+	var pong = pongData{
+		Op: "pong",
+		Ts: ping.Ts,
+	}
+
 	err = m.sendMessage(pong)
 	if err != nil {
 		return err
@@ -211,7 +224,6 @@ func (m *Market) handlePing(ping pingData) (err error) {
 
 // Subscribe 订阅
 func (m *Market) Subscribe(topic string, listener Listener) error {
-	debug.Println("subscribe", topic)
 
 	var isNew = false
 
@@ -221,7 +233,6 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 		m.sendMessage(subData{ID: topic, Sub: topic})
 		isNew = true
 	} else {
-		debug.Println("send subscribe before, reset listener only")
 	}
 
 	m.listenerMutex.Lock()
@@ -241,7 +252,6 @@ func (m *Market) Subscribe(topic string, listener Listener) error {
 
 // Unsubscribe 取消订阅
 func (m *Market) Unsubscribe(topic string) {
-	debug.Println("unSubscribe", topic)
 
 	m.listenerMutex.Lock()
 	// 火币网没有提供取消订阅的接口，只能删除监听器
@@ -270,11 +280,9 @@ func (m *Market) Request(req string) (*simplejson.Json, error) {
 
 // Loop 进入循环
 func (m *Market) Loop() {
-	debug.Println("startLoop")
 	for {
 		err := m.ws.Loop()
 		if err != nil {
-			debug.Println(err)
 			if err == SafeWebSocketDestroyError {
 				break
 			} else if m.autoReconnect {
@@ -284,12 +292,10 @@ func (m *Market) Loop() {
 			}
 		}
 	}
-	debug.Println("endLoop")
 }
 
 // ReConnect 重新连接
 func (m *Market) ReConnect() (err error) {
-	debug.Println("reconnect")
 	m.autoReconnect = true
 	if err = m.ws.Destroy(); err != nil {
 		return err
@@ -299,7 +305,6 @@ func (m *Market) ReConnect() (err error) {
 
 // Close 关闭连接
 func (m *Market) Close() error {
-	debug.Println("close")
 	m.autoReconnect = false
 	if err := m.ws.Destroy(); err != nil {
 		return err
